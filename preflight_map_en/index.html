@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pre-Flight Safety Support</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">LOCATION-AWARE PRE-FLIGHT CHECK</p>
+      <h1>Pre-Flight Safety Support</h1>
+      <p class="lead">
+        In addition to basic pre-flight checks, this prototype generates location-specific checks based on the surrounding environment. Bubble color represents the potential outcome class, while bubble size represents the effort and time needed before the planned flight can proceed.
+      </p>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="notice" aria-label="Important notice">
+      <strong>Important:</strong>
+      This research prototype does not guarantee legal flight eligibility or flight safety.
+      Always verify regulations, airspace restrictions, permits, and approvals using official sources such as MLIT and DIPS2.0.
+    </section>
+
+    <section class="panel" id="locationPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 1</span>
+          <h2>Select Planned Flight Location</h2>
+        </div>
+        <span class="radius-badge">Analysis radius: 10 m</span>
+      </div>
+
+      <div id="map" aria-label="Map for selecting the planned flight location"></div>
+
+      <div class="location-controls">
+        <div>
+          <div class="control-label">Selected location</div>
+          <div id="selectedLocation" class="coordinate-text">
+            Click the map to select a location.
+          </div>
+        </div>
+        <button id="analyzeButton" class="primary-button" type="button" disabled>
+          Check Legal & Airspace Conditions
+        </button>
+      </div>
+
+      <div id="analysisErrorPanel" class="analysis-error hidden" role="alert">
+        <div class="analysis-error-title">
+          <span id="analysisErrorCode" class="analysis-error-code"></span>
+          <strong id="analysisErrorTitle">Analysis Error</strong>
+        </div>
+        <p id="analysisErrorReason"></p>
+        <div class="analysis-error-action">
+          <strong>Action:</strong>
+          <span id="analysisErrorAction"></span>
+        </div>
+        <details class="analysis-error-details">
+          <summary>Show technical details</summary>
+          <code id="analysisErrorTechnical"></code>
+        </details>
+      </div>
+    </section>
+
+
+    <section class="panel hidden" id="legalPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 2</span>
+          <h2>Legal & Airspace Screening</h2>
+        </div>
+        <button id="legalBackButton" class="secondary-button" type="button">
+          Choose Another Location
+        </button>
+      </div>
+
+      <p class="context-note">
+        This app alone cannot determine whether a flight is legally permitted.
+        It separates items that can be pre-screened automatically from those that require confirmation using the latest official information.
+      </p>
+
+      <div class="legal-grid">
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">✈</span>
+            <div>
+              <div class="legal-card-label">AUTO CHECK</div>
+              <h3>Airspace Around Airports</h3>
+            </div>
+            <span id="airportLegalStatus" class="legal-status unknown">Checking</span>
+          </div>
+          <strong id="airportLegalText"></strong>
+          <p id="airportLegalDetail"></p>
+          <p class="legal-source-note">
+            This is a reference screening based on the GSI “Airspace Around Airports” GeoJSON. Verify boundary areas and final status using official information.
+          </p>
+          <div id="airportLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card did-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">◎</span>
+            <div>
+              <div class="legal-card-label">DID REFERENCE</div>
+              <h3>Densely Inhabited District (DID)</h3>
+            </div>
+            <span id="didLegalStatus" class="legal-status unknown">Official Check Required</span>
+          </div>
+          <strong id="didLegalText">Review the DID reference layer</strong>
+          <p id="didLegalDetail"></p>
+          <div id="didReferenceMap" class="did-reference-map" aria-label="Reference map for Densely Inhabited Districts"></div>
+          <p class="legal-source-note">
+            The GSI “Densely Inhabited Districts (2020 Census)” layer is displayed for reference.
+            Do not determine legal applicability from this screen alone. Confirm the final status using DIPS2.0 or other official sources.
+          </p>
+          <div id="didLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">!</span>
+            <div>
+              <div class="legal-card-label">LATEST INFO</div>
+              <h3>Emergency Operations Airspace</h3>
+            </div>
+          </div>
+          <p>Designation status may change due to disasters or emergency operations. Check the latest MLIT and DIPS2.0 information immediately before flight.</p>
+          <div id="emergencyLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">▣</span>
+            <div>
+              <div class="legal-card-label">MANUAL CHECK</div>
+              <h3>Areas Around Important Facilities</h3>
+            </div>
+          </div>
+          <p>Check the latest National Police Agency information to confirm whether the location is within or around a facility covered by the Act on Prohibition of Flight of Small Unmanned Aircraft.</p>
+          <div id="importantFacilityLegalCost" class="legal-cost-indicator"></div>
+        </article>
+      </div>
+
+      <div class="official-links">
+        <a href="https://www.ossportal.dips.mlit.go.jp/" target="_blank" rel="noopener noreferrer">Open DIPS2.0</a>
+        <a href="https://www.mlit.go.jp/koku/koku_fr10_000042.html" target="_blank" rel="noopener noreferrer">MLIT Permit & Approval Information</a>
+        <a href="https://www.npa.go.jp/bureau/security/kogatamujinki/index.html" target="_blank" rel="noopener noreferrer">NPA Important Facility Information</a>
+      </div>
+
+      <div id="environmentPrefetchPanel" class="environment-prefetch" aria-live="polite">
+        <div class="environment-prefetch-main">
+          <span id="environmentPrefetchIcon" class="environment-prefetch-icon">…</span>
+          <div>
+            <strong id="environmentPrefetchTitle">Preparing surrounding environment data</strong>
+            <p id="environmentPrefetchText">OpenStreetMap features are fetched in the background while you review the legal and airspace items.</p>
+          </div>
+        </div>
+        <button id="retryEnvironmentButton" class="secondary-button compact-button hidden" type="button">
+          Retry Environment Data Only
+        </button>
+      </div>
+
+      <div id="legalChecklist" class="legal-checklist">
+        <label><input type="checkbox" /> I reviewed the airspace-around-airports result</label>
+        <label><input type="checkbox" /> I verified the DID status using official information</label>
+        <label><input type="checkbox" /> I checked the latest Emergency Operations Airspace designation</label>
+        <label><input type="checkbox" /> I checked restricted areas around important facilities</label>
+      </div>
+
+      <div class="legal-proceed">
+        <p>These are only part of the required legal checks. Also verify flight conditions such as night operations, beyond-visual-line-of-sight operations, separation from people/property, and local ordinances.</p>
+        <button id="proceedToSafetyButton" class="primary-button" type="button" disabled>
+          Proceed to Pre-flight Safety Checks
+        </button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="resultPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 3</span>
+          <h2>Location Context</h2>
+        </div>
+        <button id="backButton" class="secondary-button" type="button">
+          Back to Legal & Airspace Screening
+        </button>
+      </div>
+
+      <p class="context-note">
+        The location context uses surrounding features available from OpenStreetMap as reference data.
+        “Not detected” does not mean that the feature is absent in the real environment.
+      </p>
+
+      <div id="resultEnvironmentNotice" class="result-environment-notice hidden" aria-live="polite">
+        <div>
+          <strong id="resultEnvironmentTitle"></strong>
+          <p id="resultEnvironmentText"></p>
+        </div>
+        <button id="resultRetryEnvironmentButton" class="secondary-button compact-button hidden" type="button">
+          Retry Environment Data
+        </button>
+      </div>
+
+      <div id="contextSummary" class="context-grid"></div>
+
+      <div class="bubble-heading">
+        <div>
+          <span class="step-label">STEP 4</span>
+          <h2>Pre-flight Safety Checks</h2>
+          <p id="checkStatus" class="check-status"></p>
+        </div>
+        <div id="progressText" class="progress-pill">0 / 0</div>
+      </div>
+
+      <div class="progress-track" aria-hidden="true">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+
+      <div class="visual-encoding-panel" aria-label="Meaning of bubble color and size">
+        <div class="encoding-block">
+          <strong>Color = Potential Outcome Class</strong>
+          <div class="outcome-color-legend">
+            <span><i class="outcome-swatch outcome-general"></i>General safety check</span>
+            <span><i class="outcome-swatch outcome-serious-incident"></i>Serious Incident-level</span>
+            <span><i class="outcome-swatch outcome-accident"></i>Accident-level</span>
+          </div>
+        </div>
+        <div class="encoding-block">
+          <strong>Size = Effort / Time Cost Before Flight</strong>
+          <div class="effort-size-legend">
+            <span><i class="effort-sample low"></i>Low</span>
+            <span><i class="effort-sample medium"></i>Medium</span>
+            <span><i class="effort-sample high"></i>High</span>
+            <span><i class="effort-sample very-high"></i>Very High</span>
+          </div>
+        </div>
+        <p class="encoding-source-note"><b>COMMON / LOCATION</b> is shown as a text label on each bubble instead of by color.</p>
+      </div>
+      <p class="severity-note">Color is a research-prototype outcome classification based primarily on MLIT UAV Accident / Serious Incident criteria, with FAA AC 25.1309 severity definitions used as a supporting reference. It does not mean that an accident or serious incident will occur, and it is not an official legal classification. Bubble size separately represents the relative effort and time needed to address the item before flight.</p>
+
+      <div id="bubbleField" class="bubble-field" aria-label="Pre-flight safety check items"></div>
+
+      <div id="completePanel" class="complete-panel hidden">
+        <div class="complete-mark">✓</div>
+        <h3 id="completeTitle">PRE-FLIGHT CHECK COMPLETE</h3>
+        <p id="completeText">
+          The basic and location-specific checks on this screen are complete.
+          This system does not guarantee safety or legal flight eligibility.
+        </p>
+        <button id="completeRetryEnvironmentButton" class="secondary-button hidden" type="button">
+          Retry Location Data
+        </button>
+        <button id="restartButton" class="primary-button" type="button">
+          Check Another Location
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <strong id="loadingTitle">Analyzing surrounding environment</strong>
+      <span id="loadingDetail">Fetching surrounding OpenStreetMap features...</span>
+    </div>
+  </div>
+
+  <div id="checkModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <article class="modal-card">
+      <button id="modalCloseButton" class="modal-close" type="button" aria-label="Close">×</button>
+      <div id="modalCategory" class="modal-category"></div>
+      <h2 id="modalTitle"></h2>
+      <div class="modal-metrics">
+        <div class="modal-severity-row">
+          <span>Potential Outcome Class <small>(shown by color)</small></span>
+          <strong id="modalOutcomeClass" class="outcome-chip"></strong>
+        </div>
+        <div class="modal-severity-row">
+          <span>Effort / Time Cost <small>(shown by size)</small></span>
+          <strong id="modalActionCost" class="effort-chip"></strong>
+        </div>
+      </div>
+      <p id="modalEffortReason" class="modal-effort-reason"></p>
+
+      <div class="classification-basis">
+        <div class="classification-row">
+          <span>FAA Severity Reference</span>
+          <strong id="modalFaaSeverity"></strong>
+        </div>
+        <div class="classification-reference">
+          <span>MLIT Outcome Reference</span>
+          <p id="modalMlitReference"></p>
+        </div>
+        <p id="modalClassificationReason" class="classification-reason"></p>
+      </div>
+
+      <p id="modalSummary" class="modal-detected"></p>
+
+      <div class="modal-section scenario-section">
+        <h3>What Could Happen?</h3>
+        <p id="modalScenario"></p>
+      </div>
+
+      <div class="modal-section why-section">
+        <h3>Why Is This Check Important?</h3>
+        <p id="modalWhy"></p>
+      </div>
+
+      <div class="modal-section">
+        <h3>What to Check</h3>
+        <p id="modalAction"></p>
+      </div>
+
+      <div class="modal-section safety-section">
+        <h3>For Safer Operation</h3>
+        <p id="modalSafetyTip"></p>
+      </div>
+
+      <button id="confirmCheckButton" class="primary-button confirm-button" type="button">
+        Mark as Checked
+      </button>
+    </article>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="app.js"></script>
+</body>
+</html>

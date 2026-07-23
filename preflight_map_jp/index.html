@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>飛行前安全支援システム</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">位置情報対応 飛行前チェック</p>
+      <h1>飛行前安全支援システム</h1>
+      <p class="lead">
+        基本的な飛行前確認に加えて、選択地点の周辺環境に応じた確認項目を生成します。バブルの色は想定される結果の区分、大きさは飛行を実行できる状態にするまでに必要な労力・時間を表します。
+      </p>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="notice" aria-label="重要なお知らせ">
+      <strong>重要：</strong>
+      本研究プロトタイプは、飛行の合法性や安全性を保証するものではありません。
+      法令、飛行禁止空域、許可・承認等については、国土交通省やDIPS2.0などの公式情報で必ず確認してください。
+    </section>
+
+    <section class="panel" id="locationPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 1</span>
+          <h2>飛行予定地点を選択</h2>
+        </div>
+        <span class="radius-badge">分析範囲：半径10 m</span>
+      </div>
+
+      <div id="map" aria-label="飛行予定地点を選択する地図"></div>
+
+      <div class="location-controls">
+        <div>
+          <div class="control-label">選択地点</div>
+          <div id="selectedLocation" class="coordinate-text">
+            地図をクリックして地点を選択してください。
+          </div>
+        </div>
+        <button id="analyzeButton" class="primary-button" type="button" disabled>
+          法規・空域条件を確認
+        </button>
+      </div>
+
+      <div id="analysisErrorPanel" class="analysis-error hidden" role="alert">
+        <div class="analysis-error-title">
+          <span id="analysisErrorCode" class="analysis-error-code"></span>
+          <strong id="analysisErrorTitle">分析エラー</strong>
+        </div>
+        <p id="analysisErrorReason"></p>
+        <div class="analysis-error-action">
+          <strong>対処方法：</strong>
+          <span id="analysisErrorAction"></span>
+        </div>
+        <details class="analysis-error-details">
+          <summary>技術情報を表示</summary>
+          <code id="analysisErrorTechnical"></code>
+        </details>
+      </div>
+    </section>
+
+
+    <section class="panel hidden" id="legalPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 2</span>
+          <h2>法規・空域の事前確認</h2>
+        </div>
+        <button id="legalBackButton" class="secondary-button" type="button">
+          別の地点を選ぶ
+        </button>
+      </div>
+
+      <p class="context-note">
+        このアプリだけで飛行が法的に可能かを確定することはできません。
+        自動で事前確認できる項目と、最新の公式情報による確認が必要な項目を分けて表示します。
+      </p>
+
+      <div class="legal-grid">
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">✈</span>
+            <div>
+              <div class="legal-card-label">自動確認</div>
+              <h3>空港等の周辺空域</h3>
+            </div>
+            <span id="airportLegalStatus" class="legal-status unknown">確認中</span>
+          </div>
+          <strong id="airportLegalText"></strong>
+          <p id="airportLegalDetail"></p>
+          <p class="legal-source-note">
+            This is a reference screening based on the GSI “空港等の周辺空域” GeoJSON. Verify boundary areas and final status using official information.
+          </p>
+          <div id="airportLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card did-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">◎</span>
+            <div>
+              <div class="legal-card-label">DID参考表示</div>
+              <h3>人口集中地区（DID）</h3>
+            </div>
+            <span id="didLegalStatus" class="legal-status unknown">公式情報で確認が必要</span>
+          </div>
+          <strong id="didLegalText">DID参考レイヤーを確認してください</strong>
+          <p id="didLegalDetail"></p>
+          <div id="didReferenceMap" class="did-reference-map" aria-label="人口集中地区の参考地図"></div>
+          <p class="legal-source-note">
+            国土地理院「人口集中地区（令和2年国勢調査）」レイヤーを参考表示しています。
+            この画面だけで法的な該当性を判断せず、DIPS2.0などの公式情報で最終確認してください。
+          </p>
+          <div id="didLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">!</span>
+            <div>
+              <div class="legal-card-label">最新情報</div>
+              <h3>緊急用務空域</h3>
+            </div>
+          </div>
+          <p>災害や緊急活動により指定状況が変わる場合があります。飛行直前に国土交通省・DIPS2.0の最新情報を確認してください。</p>
+          <div id="emergencyLegalCost" class="legal-cost-indicator"></div>
+        </article>
+
+        <article class="legal-card">
+          <div class="legal-card-heading">
+            <span class="legal-card-icon">▣</span>
+            <div>
+              <div class="legal-card-label">手動確認</div>
+              <h3>重要施設等の周辺</h3>
+            </div>
+          </div>
+          <p>小型無人機等飛行禁止法の対象施設またはその周辺に該当しないか、警察庁の最新情報で確認してください。</p>
+          <div id="importantFacilityLegalCost" class="legal-cost-indicator"></div>
+        </article>
+      </div>
+
+      <div class="official-links">
+        <a href="https://www.ossportal.dips.mlit.go.jp/" target="_blank" rel="noopener noreferrer">DIPS2.0を開く</a>
+        <a href="https://www.mlit.go.jp/koku/koku_fr10_000042.html" target="_blank" rel="noopener noreferrer">国土交通省 許可・承認情報</a>
+        <a href="https://www.npa.go.jp/bureau/security/kogatamujinki/index.html" target="_blank" rel="noopener noreferrer">警察庁 重要施設情報</a>
+      </div>
+
+      <div id="environmentPrefetchPanel" class="environment-prefetch" aria-live="polite">
+        <div class="environment-prefetch-main">
+          <span id="environmentPrefetchIcon" class="environment-prefetch-icon">…</span>
+          <div>
+            <strong id="environmentPrefetchTitle">周辺環境データを準備中</strong>
+            <p id="environmentPrefetchText">法規・空域項目を確認している間に、OpenStreetMapの周辺環境データをバックグラウンドで取得します。</p>
+          </div>
+        </div>
+        <button id="retryEnvironmentButton" class="secondary-button compact-button hidden" type="button">
+          周辺環境データだけ再取得
+        </button>
+      </div>
+
+      <div id="legalChecklist" class="legal-checklist">
+        <label><input type="checkbox" /> 空港等の周辺空域の確認結果を確認しました</label>
+        <label><input type="checkbox" /> DIDの該当状況を公式情報で確認しました</label>
+        <label><input type="checkbox" /> I checked the latest 緊急用務空域 designation</label>
+        <label><input type="checkbox" /> 重要施設等周辺の飛行禁止区域を確認しました</label>
+      </div>
+
+      <div class="legal-proceed">
+        <p>これらは必要な法的確認の一部です。夜間飛行、目視外飛行、人・物件との距離、自治体条例などの飛行条件も確認してください。</p>
+        <button id="proceedToSafetyButton" class="primary-button" type="button" disabled>
+          飛行前安全確認へ進む
+        </button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="resultPanel">
+      <div class="panel-heading">
+        <div>
+          <span class="step-label">STEP 3</span>
+          <h2>地点周辺情報</h2>
+        </div>
+        <button id="backButton" class="secondary-button" type="button">
+          Back to 法規・空域の事前確認
+        </button>
+      </div>
+
+      <p class="context-note">
+        地点周辺情報にはOpenStreetMapで取得できる周辺要素を参考データとして使用します。
+        「検出なし」は、実際の環境にその要素が存在しないことを意味しません。
+      </p>
+
+      <div id="resultEnvironmentNotice" class="result-environment-notice hidden" aria-live="polite">
+        <div>
+          <strong id="resultEnvironmentTitle"></strong>
+          <p id="resultEnvironmentText"></p>
+        </div>
+        <button id="resultRetryEnvironmentButton" class="secondary-button compact-button hidden" type="button">
+          周辺環境データを再取得
+        </button>
+      </div>
+
+      <div id="contextSummary" class="context-grid"></div>
+
+      <div class="bubble-heading">
+        <div>
+          <span class="step-label">STEP 4</span>
+          <h2>飛行前安全確認</h2>
+          <p id="checkStatus" class="check-status"></p>
+        </div>
+        <div id="progressText" class="progress-pill">0 / 0</div>
+      </div>
+
+      <div class="progress-track" aria-hidden="true">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+
+      <div class="visual-encoding-panel" aria-label="バブルの色と大きさの意味">
+        <div class="encoding-block">
+          <strong>色 ＝ 想定される結果の区分</strong>
+          <div class="outcome-color-legend">
+            <span><i class="outcome-swatch outcome-general"></i>一般的な安全確認</span>
+            <span><i class="outcome-swatch outcome-serious-incident"></i>重大インシデント相当</span>
+            <span><i class="outcome-swatch outcome-accident"></i>事故相当</span>
+          </div>
+        </div>
+        <div class="encoding-block">
+          <strong>大きさ ＝ 飛行実行までの労力・時間</strong>
+          <div class="effort-size-legend">
+            <span><i class="effort-sample low"></i>低</span>
+            <span><i class="effort-sample medium"></i>中</span>
+            <span><i class="effort-sample high"></i>高</span>
+            <span><i class="effort-sample very-high"></i>Very 高</span>
+          </div>
+        </div>
+        <p class="encoding-source-note"><b>COMMON / LOCATION</b> は、色ではなく各バブル内の文字ラベルで表示します。</p>
+      </div>
+      <p class="severity-note">色は、国土交通省の無人航空機に関する事故・重大インシデントの基準を主に参考にし、FAA AC 25.1309の重大度定義を補助的に用いた研究プロトタイプ上の分類です。事故や重大インシデントの発生を予測・断定するものではなく、公式な法的分類でもありません。バブルの大きさは別の軸として、飛行前にその項目へ対応するための相対的な労力・時間を表します。</p>
+
+      <div id="bubbleField" class="bubble-field" aria-label="飛行前安全確認項目"></div>
+
+      <div id="completePanel" class="complete-panel hidden">
+        <div class="complete-mark">✓</div>
+        <h3 id="completeTitle">飛行前確認 完了</h3>
+        <p id="completeText">
+          この画面の基本確認と地点依存の確認項目はすべて確認済みです。
+          本システムは飛行の安全性や法的な飛行可否を保証するものではありません。
+        </p>
+        <button id="completeRetryEnvironmentButton" class="secondary-button hidden" type="button">
+          地点データを再取得
+        </button>
+        <button id="restartButton" class="primary-button" type="button">
+          別の地点を確認
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div id="loadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <strong id="loadingTitle">周辺環境を分析中</strong>
+      <span id="loadingDetail">OpenStreetMapから周辺情報を取得しています…</span>
+    </div>
+  </div>
+
+  <div id="checkModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <article class="modal-card">
+      <button id="modal閉じるButton" class="modal-close" type="button" aria-label="閉じる">×</button>
+      <div id="modalCategory" class="modal-category"></div>
+      <h2 id="modalTitle"></h2>
+      <div class="modal-metrics">
+        <div class="modal-severity-row">
+          <span>想定される結果の区分 <small>（色で表示）</small></span>
+          <strong id="modalOutcomeClass" class="outcome-chip"></strong>
+        </div>
+        <div class="modal-severity-row">
+          <span>労力・時間コスト <small>（大きさで表示）</small></span>
+          <strong id="modalActionCost" class="effort-chip"></strong>
+        </div>
+      </div>
+      <p id="modalEffortReason" class="modal-effort-reason"></p>
+
+      <div class="classification-basis">
+        <div class="classification-row">
+          <span>FAA重大度（参考）</span>
+          <strong id="modalFaaSeverity"></strong>
+        </div>
+        <div class="classification-reference">
+          <span>国土交通省の結果区分（参考）</span>
+          <p id="modalMlitReference"></p>
+        </div>
+        <p id="modalClassificationReason" class="classification-reason"></p>
+      </div>
+
+      <p id="modalSummary" class="modal-detected"></p>
+
+      <div class="modal-section scenario-section">
+        <h3>何が起こる可能性がある？</h3>
+        <p id="modalScenario"></p>
+      </div>
+
+      <div class="modal-section why-section">
+        <h3>なぜ確認が必要？</h3>
+        <p id="modalWhy"></p>
+      </div>
+
+      <div class="modal-section">
+        <h3>確認してください</h3>
+        <p id="modalAction"></p>
+      </div>
+
+      <div class="modal-section safety-section">
+        <h3>安全のために</h3>
+        <p id="modalSafetyTip"></p>
+      </div>
+
+      <button id="confirmCheckButton" class="primary-button confirm-button" type="button">
+        確認しました
+      </button>
+    </article>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="app.js"></script>
+</body>
+</html>
