@@ -697,7 +697,7 @@ function updateLegalCostIndicator(elementId, cost, reason) {
   if (!el) return;
   const label = actionCostLabel(cost);
   el.className = `legal-cost-indicator effort-${actionCostClass(cost)}`;
-  el.innerHTML = `<span class="legal-cost-circle" aria-hidden="true"></span><span><b>${escapeHtml(label)} effort / time cost</b><small>${escapeHtml(reason)}</small></span>`;
+  el.innerHTML = `<span class="legal-cost-circle" aria-hidden="true"></span><span><b>${escapeHtml(label)} 労力 / 時間コスト</b><small>${escapeHtml(reason)}</small></span>`;
 }
 
 function allLegalAcknowledgementsChecked() {
