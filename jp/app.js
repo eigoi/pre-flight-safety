@@ -1823,7 +1823,7 @@ function openCheckModal(checkId) {
   modalSafetyTip.textContent = check.safetyTip;
 
   checkModal.classList.remove("hidden");
-  });
+  }
 
 function closeModal() {
   checkModal.classList.add("hidden");
