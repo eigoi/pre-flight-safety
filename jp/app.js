@@ -1823,10 +1823,6 @@ function openCheckModal(checkId) {
   modalSafetyTip.textContent = check.safetyTip;
 
   checkModal.classList.remove("hidden");
-  requestAnimationFrame(() => {
-    const modalCard = checkModal.querySelector(".modal-card");
-    modalCard.scrollTop = 0;
-    modalCloseButton.focus({ preventScroll: true });
   });
 
 function closeModal() {
