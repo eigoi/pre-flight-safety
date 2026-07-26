@@ -1549,7 +1549,7 @@ function renderBubbles(checks) {
   } else if (state.environmentStatus === "ERROR") {
     checkStatus.textContent = `${checks.length}件の基本確認を表示しています。周辺環境データの取得後、地点依存の確認項目が追加されます。`;
   } else {
-    checkStatus.textContent = `${checks.length}件の確認項目を生成しました。バブルの色は想定される結果の区分、大きさは飛行前に必要な相対的な労力・時間を表します。凡例との重複を避けるため、各バブル内にはCOMMON / LOCATIONラベルと確認項目名のみ表示します。`;
+    checkStatus.textContent = `${checks.length}件の確認項目を生成しました。バブルの色は想定される結果の区分、大きさは飛行前に必要な相対的な労力・時間を表します。`;
   }
 
   if (visibleChecks.length === 0) {
@@ -1573,7 +1573,10 @@ function renderBubbles(checks) {
 
       const category = document.createElement("span");
       category.className = "bubble-category";
-      category.textContent = check.scope;
+      category.textContent =
+        check.scope === "COMMON"
+        ? "一般事項"
+        : "現在地";
 
       const title = document.createElement("span");
       title.className = "bubble-title";
@@ -1940,7 +1943,7 @@ function showPendingCompletion() {
 
   completeTitle.textContent = "地点依存の確認項目を待機中";
   completeText.textContent =
-    "現在利用できる基本確認はすべて完了しました。地点依存の周辺環境データはまだ取得中です。地点データの準備ができ、追加されたLOCATION項目も確認すると最終完了になります。";
+    "現在利用できる基本確認はすべて完了しました。地点依存の周辺環境データはまだ取得中です。地点データの準備ができ、追加された現在地項目も確認すると最終完了になります。";
   checkStatus.textContent =
     "基本確認は完了しています。最終完了のため地点依存データを待っています。";
   completeRetryEnvironmentButton?.classList.add("hidden");
