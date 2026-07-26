@@ -505,7 +505,7 @@ async function runLegalScreening(lat, lon) {
     did: {
       status: "VERIFY",
       title: "人口集中地区（DID）参考レイヤー",
-      detail: "選択地点周辺に令和2年国勢調査のDIDレイヤーを表示しています。境界付近や法的な該当性はDIPS2.0などの公式情報で確認してください。",
+      detail: "選択地点周辺に令和2年国勢調査のDIDレイヤーを表示しています。",
     },
   };
 }
@@ -558,7 +558,7 @@ async function checkAirportAirspace(lat, lon) {
         matched: false,
         title: "この自動事前確認では該当なし",
         detail:
-          "選択地点は取得した国土地理院「空港等の周辺空域」データには含まれていません。境界付近や最新状況は公式情報で再確認してください。",
+          "選択地点は取得した国土地理院「空港等の周辺空域」データには含まれていません。",
       };
     }
 
@@ -585,8 +585,6 @@ async function checkAirportAirspace(lat, lon) {
     status: "CLEAR",
     matched: false,
     title: "この自動事前確認では該当なし",
-    detail:
-      "選択地点は取得した国土地理院「空港等の周辺空域」データには含まれていません。ただし、これだけで法的に飛行可能と判断することはできません。",
   };
 }
 
@@ -661,7 +659,7 @@ function renderLegalScreening(legal) {
     airport.status === "ATTENTION"
       ? "飛行前に公式な許可、調整、地点変更などが必要な場合、大きな時間・労力がかかる可能性があります。"
       : airport.status === "CLEAR"
-      ? "この参考確認では該当が見つからなかったため、通常の公式情報確認が残ります。"
+      ? "この参考確認では該当が見つからなかったため、確認のみしてください。"
       : "自動確認を利用できなかったため、公式情報による手動確認に追加の時間が必要になる可能性があります。"
   );
 
@@ -1009,8 +1007,6 @@ function updateResultEnvironmentNotice() {
   if (state.environmentStatus === "READY") {
     resultEnvironmentNotice.classList.add("notice-ready");
     resultEnvironmentTitle.textContent = "地点依存データを反映しました";
-    resultEnvironmentText.textContent =
-      "取得したOpenStreetMapの周辺要素に基づき、該当する地点依存の確認項目を追加しました。";
     return;
   }
 
